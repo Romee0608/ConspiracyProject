@@ -2,9 +2,11 @@ import tensorflow
 import base64
 import requests
 import os
+from datetime import datetime
+
 
 class SaveModelToGitHub(tensorflow.keras.callbacks.Callback):
-    def __init__(self, github_settings, name="model", only_save_at_end=False, delete_after_upload=False):
+    def __init__(self, github_settings, name="model", only_save_at_end=True, delete_after_upload=False):
         super().__init__()
         self.github_settings = github_settings
         self.name = name
@@ -18,11 +20,21 @@ class SaveModelToGitHub(tensorflow.keras.callbacks.Callback):
                     f"{field} field is not in github settings or is empty")
 
     def on_epoch_end(self, epoch, logs=None):
-        if self.only_save_at_end == False or (self.only_save_at_end and self.params["epochs"] - 1 == epoch):
+        if self.only_save_at_end == False and epoch < self.params["epochs"] - 1:
             self._save_model(epoch)
 
-    def _save_model(self, epoch):
-        filename = f"{self.name}-epoch-{epoch + 1}.h5"
+    def on_train_end(self, logs):
+        self._save_model()
+
+    def _save_model(self, epoch=None):
+        now = datetime.now()
+        datetime_stamp = now.strftime("%d%m%y%H%M%S")
+
+        if epoch == None:
+            filename = f"{self.name}-{datetime_stamp}.h5"
+        else:
+            filename = f"{self.name}-{datetime_stamp}-epoch-{epoch + 1}.h5"
+
         filepath = f"./{filename}"
         self.model.save(filepath)
         github_settings = self.github_settings
@@ -31,8 +43,13 @@ class SaveModelToGitHub(tensorflow.keras.callbacks.Callback):
             content = file.read()
 
         content_base64 = base64.b64encode(content).decode()
+        if epoch == None:
+            message = f"Back up for {self.name}"
+        else:
+            message = f"Back up for {self.name} epoch {epoch + 1}"
+
         data = {
-            'message': f"Back up for {self.name} epoch {epoch + 1}",
+            'message': message,
             'content': content_base64
         }
         headers = {

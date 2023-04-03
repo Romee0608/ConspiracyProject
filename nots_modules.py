@@ -23,9 +23,9 @@ class SaveModelToGitHub(tensorflow.keras.callbacks.Callback):
 
     def _save_model(self, epoch):
         filename = f"{self.name}-epoch-{epoch + 1}.h5"
-        # filepath = io_utils.path_to_string(filename)
         filepath = f"./{filename}"
         self.model.save(filepath)
+        github_settings = self.github_settings
 
         with open(filepath, "rb") as file:
             content = file.read()
